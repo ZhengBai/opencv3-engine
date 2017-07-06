@@ -3,7 +3,7 @@
 
 import logging
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 try:
     from opencv_engine.engine_cv3 import Engine  # NOQA
