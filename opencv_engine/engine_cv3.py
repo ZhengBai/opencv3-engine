@@ -7,10 +7,13 @@
 
 import cv2
 import numpy as np
-
+from subprocess import Popen, PIPE
+from tempfile import NamedTemporaryFile
+import os
 from colour import Color
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
+from thumbor.utils import logger
 
 try:
     from thumbor.ext.filters import _composite
@@ -26,6 +29,8 @@ FORMATS = {
     '.webp': 'WEBP'
 }
 
+class Gif2WebpError(RuntimeError):
+    pass
 
 class Engine(BaseEngine):
     @property
@@ -162,6 +167,40 @@ class Engine(BaseEngine):
                 options = [cv2.IMWRITE_WEBP_QUALITY, quality]
         except KeyError:
             options = [cv2.IMWRITE_JPEG_QUALITY, quality]
+
+        if FORMATS[self.extension] == 'PNG' and FORMATS[extension] == 'WEBP':
+            png_file = NamedTemporaryFile(suffix='.png', delete=False)
+            png_file.write(self.buffer)
+            png_file.close()
+
+            output_suffix = '.webp'
+            result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
+            result_file.close()
+
+            logger.debug('convert {0} to {1}'.format(png_file.name, result_file.name))
+            try:
+                command = [
+                    self.context.config.CWEB_PATH,
+                    '-q', str(quality),
+                    png_file.name,
+                    '-o', result_file.name
+                ]
+                png_2_webp_process = Popen(command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+                png_2_webp_process.communicate()
+                if png_2_webp_process.returncode != 0:
+                    raise Gif2WebpError(
+                        'png2webp command returned errorlevel {0} for command "{1}"'.format(
+                            png_2_webp_process.returncode, ' '.join(
+                                command +
+                                [self.context.request.url]
+                            )
+                        )
+                    )
+                with open(result_file.name, 'r') as f:
+                    return f.read()
+            finally:
+                os.unlink(png_file.name)
+                os.unlink(result_file.name)
 
         success, buf = cv2.imencode(extension, self.image, options or [])
         data = buf.tostring()
