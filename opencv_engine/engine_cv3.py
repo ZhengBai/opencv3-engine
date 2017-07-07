@@ -104,12 +104,20 @@ class Engine(BaseEngine):
         pass
 
     def resize(self, width, height):
-        r = height / self.size[1]
-        width = int(self.size[0] * r)
+        # r = height / self.size[1]
+        # width = int(self.size[0] * r)
         dim = (int(round(width, 0)), int(round(height, 0)))
+        self.command.extend(["-resize", str(round(width, 0)), str(round(height, 0))])
         self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
 
     def crop(self, left, top, right, bottom):
+        width = right - left
+        if right > self.image.shape[0]:
+            width = self.image.shape[0] - left
+        height = bottom - top
+        if bottom > self.image.shape[1]:
+            height = self.image.shape[1] - top
+        self.command.extend(["-crop", str(left), str(top), str(width), str(height)])
         self.image = self.image[top: bottom, left: right]
 
     def rotate(self, degrees):
@@ -179,19 +187,18 @@ class Engine(BaseEngine):
 
             logger.debug('convert {0} to {1}'.format(png_file.name, result_file.name))
             try:
-                command = [
-                    self.context.config.CWEB_PATH,
+                self.command.extend([
                     '-q', str(quality),
                     png_file.name,
                     '-o', result_file.name
-                ]
-                png_2_webp_process = Popen(command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+                ])
+                png_2_webp_process = Popen(self.command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
                 png_2_webp_process.communicate()
                 if png_2_webp_process.returncode != 0:
                     raise Gif2WebpError(
                         'png2webp command returned errorlevel {0} for command "{1}"'.format(
                             png_2_webp_process.returncode, ' '.join(
-                                command +
+                                self.command +
                                 [self.context.request.url]
                             )
                         )
