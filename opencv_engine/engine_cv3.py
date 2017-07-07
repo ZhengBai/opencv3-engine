@@ -112,11 +112,11 @@ class Engine(BaseEngine):
 
     def crop(self, left, top, right, bottom):
         width = right - left
-        if right > self.image.shape[0]:
-            width = self.image.shape[0] - left
+        if right > self.size[0]:
+            width = self.size[0] - left
         height = bottom - top
-        if bottom > self.image.shape[1]:
-            height = self.image.shape[1] - top
+        if bottom > self.size[1]:
+            height = self.size[1] - top
         self.command.extend(["-crop", str(left), str(top), str(width), str(height)])
         self.image = self.image[top: bottom, left: right]
 
