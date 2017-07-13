@@ -80,6 +80,14 @@ class Engine(BaseEngine):
             pass
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_UNCHANGED)
+        if FORMATS[self.extension] == 'PNG' and img.dtype == np.uint16 and img.shape[2] == 4:
+            img = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_ANYCOLOR)
+
+        # cv2.imwrite("/Users/wangbaifeng/Downloads/testopencv.png", img)
+        # img_png = cv2.imread("/Users/wangbaifeng/Downloads/testopencv.png", cv2.IMREAD_UNCHANGED)
+        # png_options = [cv2.IMWRITE_JPEG_QUALITY, 80]
+        # success, buf = cv2.imencode(".jpg", img_png, png_options or [])
+        # cv2.imwrite("/Users/wangbaifeng/Downloads/testopencv.jpg", img_png)
 
         # imagefiledata = cv2.cv.CreateMatHeader(1, len(buffer), cv2.cv.CV_8UC1)
         # cv2.cv.SetData(imagefiledata, buffer, len(buffer))
@@ -176,38 +184,57 @@ class Engine(BaseEngine):
         except KeyError:
             options = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
-        if FORMATS[self.extension] == 'PNG' and FORMATS[extension] == 'WEBP':
-            png_file = NamedTemporaryFile(suffix='.png', delete=False)
-            png_file.write(self.buffer)
-            png_file.close()
+        # png with alpha convert jpg use white background
+        if FORMATS[self.extension] == 'PNG' and FORMATS[extension] == 'JPEG' and self.image_channels == 4 and self.image.dtype == np.uint8:
+            alpha_channel = self.image[:, :, 3]
+            rgb_channels = self.image[:, :, :3]
 
-            output_suffix = '.webp'
-            result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
-            result_file.close()
+            # White Background Image
+            white_background_image = np.ones_like(rgb_channels, dtype=np.uint8) * 255
 
-            logger.debug('convert {0} to {1}'.format(png_file.name, result_file.name))
-            try:
-                self.command.extend([
-                    '-q', str(quality),
-                    png_file.name,
-                    '-o', result_file.name
-                ])
-                png_2_webp_process = Popen(self.command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
-                png_2_webp_process.communicate()
-                if png_2_webp_process.returncode != 0:
-                    raise Gif2WebpError(
-                        'png2webp command returned errorlevel {0} for command "{1}"'.format(
-                            png_2_webp_process.returncode, ' '.join(
-                                self.command +
-                                [self.context.request.url]
-                            )
-                        )
-                    )
-                with open(result_file.name, 'r') as f:
-                    return f.read()
-            finally:
-                os.unlink(png_file.name)
-                os.unlink(result_file.name)
+            # Alpha factor
+            alpha_factor = alpha_channel[:, :, np.newaxis].astype(np.float32) / 255.0
+            alpha_factor = np.concatenate((alpha_factor, alpha_factor, alpha_factor), axis=2)
+
+            # Transparent Image Rendered on White Background
+            base = rgb_channels.astype(np.float32) * alpha_factor
+            white = white_background_image.astype(np.float32) * (1 - alpha_factor)
+            final_image = base + white
+            success, buf = cv2.imencode(extension, final_image, options or [])
+            return buf.tostring()
+
+        # if FORMATS[self.extension] == 'PNG' and FORMATS[extension] == 'WEBP':
+        #     png_file = NamedTemporaryFile(suffix='.png', delete=False)
+        #     png_file.write(self.buffer)
+        #     png_file.close()
+        #
+        #     output_suffix = '.webp'
+        #     result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
+        #     result_file.close()
+        #
+        #     logger.debug('convert {0} to {1}'.format(png_file.name, result_file.name))
+        #     try:
+        #         self.command.extend([
+        #             '-q', str(quality),
+        #             png_file.name,
+        #             '-o', result_file.name
+        #         ])
+        #         png_2_webp_process = Popen(self.command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        #         png_2_webp_process.communicate()
+        #         if png_2_webp_process.returncode != 0:
+        #             raise Gif2WebpError(
+        #                 'png2webp command returned errorlevel {0} for command "{1}"'.format(
+        #                     png_2_webp_process.returncode, ' '.join(
+        #                         self.command +
+        #                         [self.context.request.url]
+        #                     )
+        #                 )
+        #             )
+        #         with open(result_file.name, 'r') as f:
+        #             return f.read()
+        #     finally:
+        #         os.unlink(png_file.name)
+        #         os.unlink(result_file.name)
 
         success, buf = cv2.imencode(extension, self.image, options or [])
         data = buf.tostring()
