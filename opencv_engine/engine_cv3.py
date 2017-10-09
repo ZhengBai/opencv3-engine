@@ -22,6 +22,7 @@ except ImportError:
     FILTERS_AVAILABLE = False
 
 FORMATS = {
+    '.tif': 'PNG',
     '.jpg': 'JPEG',
     '.jpeg': 'JPEG',
     '.gif': 'GIF',
