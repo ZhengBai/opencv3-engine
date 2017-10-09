@@ -13,7 +13,7 @@ import os
 from colour import Color
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
-from thumbor.utils import logger
+from thumbor.utils import logger, EXTENSION
 
 try:
     from thumbor.ext.filters import _composite
@@ -247,6 +247,30 @@ class Engine(BaseEngine):
                 data = img.writeString()
 
         return data
+
+    def load(self, buffer, extension):
+        self.extension = extension
+
+        if extension is None:
+            mime = self.get_mimetype(buffer)
+            self.extension = EXTENSION.get(mime, '.jpg')
+
+        if self.extension == '.tif':  # Pillow does not support 16bit per channel TIFF images
+            buffer = self.convert_tif_to_png(buffer)
+
+        super(Engine, self).load(buffer, self.extension)
+
+    def convert_tif_to_png(self, buffer):
+        if not cv2:
+            msg = """[OpenCV Engine] convert_tif_to_png failed: opencv not imported"""
+            logger.error(msg)
+            return buffer
+
+        img = cv2.imdecode(np.fromstring(buffer, dtype='uint16'), -1)
+        buffer = cv2.imencode('.png', img)[1].tostring()
+        mime = self.get_mimetype(buffer)
+        self.extension = EXTENSION.get(mime, '.jpg')
+        return buffer
 
     def set_image_data(self, data):
         self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(self.image.shape)
