@@ -22,6 +22,7 @@ except ImportError:
     FILTERS_AVAILABLE = False
 
 FORMATS = {
+    '.heif': 'JPEG',
     '.tif': 'PNG',
     '.jpg': 'JPEG',
     '.jpeg': 'JPEG',
@@ -259,6 +260,9 @@ class Engine(BaseEngine):
         if self.extension == '.tif':  # Pillow does not support 16bit per channel TIFF images
             buffer = self.convert_tif_to_png(buffer)
 
+        if self.extension == '.heif':
+            buffer = self.convert_heif_to_jpeg(buffer)
+
         super(Engine, self).load(buffer, self.extension)
 
     def convert_tif_to_png(self, buffer):
@@ -272,6 +276,42 @@ class Engine(BaseEngine):
         mime = self.get_mimetype(buffer)
         self.extension = EXTENSION.get(mime, '.jpg')
         return buffer
+
+    def convert_heif_to_jpeg(self, buffer):
+        heif_file = NamedTemporaryFile(suffix='.heif', delete=False)
+        heif_file.write(self.buffer)
+        heif_file.close()
+
+        output_suffix = '.jpg'
+        result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
+        try:
+            logger.debug('convert {0} to {1}'.format(heif_file.name, result_file.name))
+            result_file.close()
+            command = [
+                self.context.config.HEIF2JPEG_PATH,
+                heif_file.name,
+                result_file.name
+            ]
+            heif_2_jpg_process = Popen(command, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+            stdout, stderr = heif_2_jpg_process.communicate()
+            if heif_2_jpg_process.returncode != 0:
+                logger.error('stdout {0} stderr {1}', stdout, stderr)
+                raise HEIF2JpgError(
+                    'heif2jpg command returned error level {0} for command "{1}"'.format(
+                        heif_2_jpg_process.returncode, ' '.join(
+                            command +
+                            [self.context.request.url]
+                        )
+                    )
+                )
+            with open(result_file.name, 'r') as f:
+                buffer = f.read()
+            mime = self.get_mimetype(buffer)
+            self.extension = EXTENSION.get(mime, '.jpg')
+            return buffer
+        finally:
+            os.unlink(heif_file.name)
+            os.unlink(result_file.name)
 
     def set_image_data(self, data):
         self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(self.image.shape)
