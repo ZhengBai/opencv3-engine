@@ -17,6 +17,7 @@ from thumbor.utils import logger, EXTENSION
 
 try:
     from thumbor.ext.filters import _composite
+
     FILTERS_AVAILABLE = True
 except ImportError:
     FILTERS_AVAILABLE = False
@@ -31,8 +32,10 @@ FORMATS = {
     '.webp': 'WEBP'
 }
 
+
 class Gif2WebpError(RuntimeError):
     pass
+
 
 class Engine(BaseEngine):
     @property
@@ -85,7 +88,6 @@ class Engine(BaseEngine):
         if (FORMATS[self.extension] == 'PNG' and img.dtype == np.uint16 and len(img.shape) > 2 and img.shape[2] == 4) or \
                 (FORMATS[self.extension] == 'JPEG' and img.dtype == np.uint8 and len(img.shape) > 2 and img.shape[2] == 4):
             img = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_ANYCOLOR)
-
         # cv2.imwrite("/Users/wangbaifeng/Downloads/testopencv.png", img)
         # img_png = cv2.imread("/Users/wangbaifeng/Downloads/testopencv.png", cv2.IMREAD_UNCHANGED)
         # png_options = [cv2.IMWRITE_JPEG_QUALITY, 80]
@@ -188,7 +190,8 @@ class Engine(BaseEngine):
             options = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
         # png with alpha convert jpg use white background
-        if FORMATS[self.extension] == 'PNG' and FORMATS[extension] == 'JPEG' and self.image_channels == 4 and self.image.dtype == np.uint8:
+        if FORMATS[self.extension] == 'PNG' and FORMATS[
+            extension] == 'JPEG' and self.image_channels == 4 and self.image.dtype == np.uint8:
             alpha_channel = self.image[:, :, 3]
             rgb_channels = self.image[:, :, :3]
 
@@ -252,7 +255,7 @@ class Engine(BaseEngine):
 
     def load(self, buffer, extension):
         self.extension = extension
-
+        logger.info('extension is %s' % extension)
         if extension is None:
             mime = self.get_mimetype(buffer)
             self.extension = EXTENSION.get(mime, '.jpg')
@@ -261,6 +264,7 @@ class Engine(BaseEngine):
             buffer = self.convert_tif_to_png(buffer)
 
         if self.extension == '.heif':
+            logger.info('execute convert_heif_to_jpeg')
             buffer = self.convert_heif_to_jpeg(buffer)
 
         super(Engine, self).load(buffer, self.extension)
@@ -278,10 +282,11 @@ class Engine(BaseEngine):
         return buffer
 
     def convert_heif_to_jpeg(self, buffer):
+        logger.info('convert_heif_to_jpeg')
         heif_file = NamedTemporaryFile(suffix='.heif', delete=False)
         heif_file.write(self.buffer)
         heif_file.close()
-
+        logger.info('heif_file.name is %s' % heif_file.name)
         output_suffix = '.jpg'
         result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
         try:
