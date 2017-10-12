@@ -255,7 +255,6 @@ class Engine(BaseEngine):
 
     def load(self, buffer, extension):
         self.extension = extension
-        logger.info('extension is %s' % extension)
         if extension is None:
             mime = self.get_mimetype(buffer)
             self.extension = EXTENSION.get(mime, '.jpg')
@@ -264,7 +263,6 @@ class Engine(BaseEngine):
             buffer = self.convert_tif_to_png(buffer)
 
         if self.extension == '.heif':
-            logger.info('execute convert_heif_to_jpeg')
             buffer = self.convert_heif_to_jpeg(buffer)
 
         super(Engine, self).load(buffer, self.extension)
@@ -282,11 +280,9 @@ class Engine(BaseEngine):
         return buffer
 
     def convert_heif_to_jpeg(self, buffer):
-        logger.info('convert_heif_to_jpeg')
         heif_file = NamedTemporaryFile(suffix='.heif', delete=False)
-        heif_file.write(self.buffer)
+        heif_file.write(buffer)
         heif_file.close()
-        logger.info('heif_file.name is %s' % heif_file.name)
         output_suffix = '.jpg'
         result_file = NamedTemporaryFile(suffix=output_suffix, delete=False)
         try:
