@@ -290,7 +290,8 @@ class Engine(BaseEngine):
             result_file.close()
             command = [
                 self.context.config.HEIF2JPEG_PATH,
-                '-q', str(self.context.config.HEIF2JPEG_PATH_QUALITY),
+                '-jpeg-qual', str(self.context.config.HEIF2JPEG_PATH_QUALITY),
+                '-threads', str(self.context.config.HEIF2JPEG_THREADS),
                 heif_file.name,
                 result_file.name
             ]
