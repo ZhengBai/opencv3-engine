@@ -85,8 +85,9 @@ class Engine(BaseEngine):
             pass
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_UNCHANGED)
-        if (FORMATS[self.extension] == 'PNG' and img.dtype == np.uint16 and len(img.shape) > 2 and img.shape[2] == 4) or \
-                (FORMATS[self.extension] == 'JPEG' and img.dtype == np.uint8 and len(img.shape) > 2 and img.shape[2] == 4):
+        if (FORMATS[self.extension] == 'PNG' and img.dtype == np.uint16 and len(img.shape) > 2 and img.shape[
+            2] >= 3) or (FORMATS[self.extension] == 'JPEG' and img.dtype == np.uint8 and len(img.shape) > 2 and
+                                 img.shape[2] == 4):
             img = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_ANYCOLOR)
         # cv2.imwrite("/Users/wangbaifeng/Downloads/testopencv.png", img)
         # img_png = cv2.imread("/Users/wangbaifeng/Downloads/testopencv.png", cv2.IMREAD_UNCHANGED)
